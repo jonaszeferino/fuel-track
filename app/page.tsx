@@ -178,17 +178,17 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto p-4 max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Controle de Combustível</h1>
-          <p className="text-gray-600">Gerencie seus veículos e monitore o consumo de combustível</p>
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Controle de Combustível</h1>
+          <p className="text-sm md:text-base text-gray-600">Gerencie seus veículos e monitore o consumo de combustível</p>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex space-x-1 mb-6 bg-white rounded-lg p-1 shadow-sm">
+        <div className="flex flex-wrap gap-1 mb-6 bg-white rounded-lg p-1 shadow-sm">
           <button
             onClick={() => setActiveTab("vehicles")}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+            className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-colors text-sm md:text-base ${
               activeTab === "vehicles" ? "bg-blue-500 text-white" : "text-gray-600 hover:bg-gray-100"
             }`}
           >
@@ -197,7 +197,7 @@ export default function HomePage() {
           </button>
           <button
             onClick={() => setActiveTab("fuel")}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+            className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-colors text-sm md:text-base ${
               activeTab === "fuel" ? "bg-blue-500 text-white" : "text-gray-600 hover:bg-gray-100"
             }`}
           >
@@ -206,7 +206,7 @@ export default function HomePage() {
           </button>
           <button
             onClick={() => setActiveTab("stats")}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+            className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-colors text-sm md:text-base ${
               activeTab === "stats" ? "bg-blue-500 text-white" : "text-gray-600 hover:bg-gray-100"
             }`}
           >
@@ -217,10 +217,10 @@ export default function HomePage() {
 
         {/* Content */}
         {activeTab === "vehicles" && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h2 className="text-xl font-semibold">Meus Veículos</h2>
-              <Button onClick={() => setShowVehicleForm(true)}>
+              <Button onClick={() => setShowVehicleForm(true)} className="w-full sm:w-auto">
                 <Plus className="w-4 h-4 mr-2" />
                 Adicionar Veículo
               </Button>
@@ -233,10 +233,14 @@ export default function HomePage() {
         )}
 
         {activeTab === "fuel" && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h2 className="text-xl font-semibold">Registros de Abastecimento</h2>
-              <Button onClick={() => setShowFuelForm(true)} disabled={vehicles.length === 0}>
+              <Button 
+                onClick={() => setShowFuelForm(true)} 
+                disabled={vehicles.length === 0}
+                className="w-full sm:w-auto"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Novo Abastecimento
               </Button>
@@ -244,7 +248,7 @@ export default function HomePage() {
 
             {vehicles.length === 0 && (
               <Card>
-                <CardContent className="text-center py-8">
+                <CardContent className="text-center py-6">
                   <p className="text-gray-500">Cadastre um veículo primeiro para registrar abastecimentos</p>
                 </CardContent>
               </Card>
@@ -267,7 +271,7 @@ export default function HomePage() {
         )}
 
         {activeTab === "stats" && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <h2 className="text-xl font-semibold">Estatísticas de Consumo</h2>
             <ConsumptionStats fuelRecords={fuelRecords} vehicles={vehicles} />
           </div>

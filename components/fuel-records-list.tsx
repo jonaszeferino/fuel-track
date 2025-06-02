@@ -53,12 +53,12 @@ export function FuelRecordsList({ fuelRecords, vehicles, onDelete }: FuelRecords
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {fuelRecords.map((record) => (
           <Card key={record.id} className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">{getVehicleName(record.vehicle_id)}</CardTitle>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <CardTitle className="text-base sm:text-lg">{getVehicleName(record.vehicle_id)}</CardTitle>
                 <div className="flex items-center gap-2">
                   <Fuel className="w-5 h-5 text-blue-500" />
                   <Button
@@ -71,28 +71,28 @@ export function FuelRecordsList({ fuelRecords, vehicles, onDelete }: FuelRecords
                   </Button>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Badge variant="secondary" className="w-fit">
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Badge variant="secondary" className="w-fit text-xs sm:text-sm">
                   {record.fuel_type}
                 </Badge>
-                <Badge variant={record.full_tank ? "default" : "outline"} className="w-fit">
+                <Badge variant={record.full_tank ? "default" : "outline"} className="w-fit text-xs sm:text-sm">
                   {record.full_tank ? "Tanque Cheio" : "Parcial"}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="flex items-center text-sm text-gray-600">
+              <div className="flex items-center text-xs sm:text-sm text-gray-600">
                 <TrendingUp className="w-4 h-4 mr-2" />
                 <span>Quilometragem: {record.odometer.toLocaleString()} km</span>
               </div>
-              <div className="flex items-center text-sm text-gray-600">
+              <div className="flex items-center text-xs sm:text-sm text-gray-600">
                 <Fuel className="w-4 h-4 mr-2" />
                 <span>
                   {record.fuel_amount}L x R${record.fuel_price_per_unit.toFixed(2)} = R${record.total_cost.toFixed(2)}
                 </span>
               </div>
               {record.notes && (
-                <div className="text-sm text-gray-600">
+                <div className="text-xs sm:text-sm text-gray-600">
                   <p className="font-medium">Observações:</p>
                   <p>{record.notes}</p>
                 </div>
@@ -106,7 +106,7 @@ export function FuelRecordsList({ fuelRecords, vehicles, onDelete }: FuelRecords
       </div>
 
       <AlertDialog open={recordToDelete !== null} onOpenChange={() => setRecordToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[90vw] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
