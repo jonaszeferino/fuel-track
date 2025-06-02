@@ -1,12 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Car, Calendar, Fuel } from "lucide-react"
+import { Car, Calendar, Fuel, Trash2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface VehicleListProps {
   vehicles: any[]
+  onDelete: (id: number) => void
 }
 
-export function VehicleList({ vehicles }: VehicleListProps) {
+export function VehicleList({ vehicles, onDelete }: VehicleListProps) {
   if (vehicles.length === 0) {
     return (
       <Card>
@@ -26,7 +28,17 @@ export function VehicleList({ vehicles }: VehicleListProps) {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">{vehicle.name}</CardTitle>
-              <Car className="w-5 h-5 text-blue-500" />
+              <div className="flex items-center gap-2">
+                <Car className="w-5 h-5 text-blue-500" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => onDelete(vehicle.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             {vehicle.subtitle && (
               <Badge variant="secondary" className="w-fit">

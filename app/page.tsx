@@ -9,67 +9,171 @@ import { FuelRecordForm } from "@/components/fuel-record-form"
 import { VehicleList } from "@/components/vehicle-list"
 import { FuelRecordsList } from "@/components/fuel-records-list"
 import { ConsumptionStats } from "@/components/consumption-stats"
+import { supabase } from "@/lib/supabase"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function HomePage() {
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("vehicles")
   const [vehicles, setVehicles] = useState([])
   const [fuelRecords, setFuelRecords] = useState([])
   const [showVehicleForm, setShowVehicleForm] = useState(false)
   const [showFuelForm, setShowFuelForm] = useState(false)
 
-  // Simular dados iniciais
-  //testando 2
   useEffect(() => {
-    const mockVehicles = [
-      {
-        id: 1,
-        name: "Honda Civic",
-        tank_capacity: 50,
-        year: 2020,
-        subtitle: "Sedan",
-        created_at: new Date().toISOString(),
-        is_deleted: false,
-      },
-    ]
-
-    const mockFuelRecords = [
-      {
-        id: 1,
-        vehicle_id: 1,
-        odometer: 15000,
-        fuel_amount: 45,
-        fuel_price_per_unit: 5.5,
-        total_cost: 247.5,
-        fuel_type: "Gasolina",
-        full_tank: true,
-        notes: "Primeiro abastecimento",
-        created_at: new Date().toISOString(),
-      },
-    ]
-
-    setVehicles(mockVehicles)
-    setFuelRecords(mockFuelRecords)
+    fetchVehicles()
+    fetchFuelRecords()
   }, [])
 
-  const addVehicle = (vehicle) => {
-    const newVehicle = {
-      ...vehicle,
-      id: Date.now(),
-      created_at: new Date().toISOString(),
-      is_deleted: false,
+  const fetchVehicles = async () => {
+    const { data, error } = await supabase
+      .from('vehicles')
+      .select('*')
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('Erro ao buscar veículos:', error)
+      return
     }
-    setVehicles([...vehicles, newVehicle])
+    
+    const uniqueVehicles = data?.reduce((acc, vehicle) => {
+      if (!acc.find(v => v.id === vehicle.id)) {
+        acc.push(vehicle)
+      }
+      return acc
+    }, []) || []
+    
+    setVehicles(uniqueVehicles)
+  }
+
+  const fetchFuelRecords = async () => {
+    const { data, error } = await supabase
+      .from('fuel_records')
+      .select('*')
+      .eq('is_deleted', false)
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('Erro ao buscar registros de combustível:', error)
+      return
+    }
+    
+    const uniqueRecords = data?.reduce((acc, record) => {
+      if (!acc.find(r => r.id === record.id)) {
+        acc.push(record)
+      }
+      return acc
+    }, []) || []
+    
+    setFuelRecords(uniqueRecords)
+  }
+
+  const addVehicle = async (vehicle) => {
+    const { data, error } = await supabase
+      .from('vehicles')
+      .insert([
+        {
+          name: vehicle.name,
+          tank_capacity: vehicle.tank_capacity,
+          year: vehicle.year,
+          subtitle: vehicle.subtitle,
+          is_deleted: false
+        }
+      ])
+      .select()
+
+    if (error) {
+      console.error('Erro ao adicionar veículo:', error)
+      return
+    }
+
+    setVehicles([...vehicles, data[0]])
     setShowVehicleForm(false)
   }
 
-  const addFuelRecord = (record) => {
-    const newRecord = {
-      ...record,
-      id: Date.now(),
-      created_at: new Date().toISOString(),
+  const deleteVehicle = async (vehicleId) => {
+    const { error } = await supabase
+      .from('vehicles')
+      .update({ is_deleted: true })
+      .eq('id', vehicleId)
+
+    if (error) {
+      console.error('Erro ao deletar veículo:', error)
+      return
     }
-    setFuelRecords([...fuelRecords, newRecord])
-    setShowFuelForm(false)
+
+    setVehicles(vehicles.filter(vehicle => vehicle.id !== vehicleId))
+  }
+
+  const deleteFuelRecord = async (recordId) => {
+    try {
+      const { error } = await supabase
+        .from('fuel_records')
+        .update({ is_deleted: true })
+        .eq('id', recordId)
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível excluir o registro",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Atualiza a lista local removendo o registro deletado
+      setFuelRecords(fuelRecords.filter(record => record.id !== recordId))
+      
+      toast({
+        title: "Sucesso",
+        description: "Registro excluído com sucesso"
+      })
+    } catch (error) {
+      console.error('Erro ao deletar registro:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o registro",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const addFuelRecord = async (record) => {
+    try {
+      const { data, error } = await supabase
+        .from('fuel_records')
+        .insert([{
+          ...record,
+          is_deleted: false
+        }])
+        .select()
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível registrar o abastecimento",
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (data && data.length > 0) {
+        setFuelRecords([...fuelRecords, data[0]])
+        setShowFuelForm(false)
+        toast({
+          title: "Sucesso",
+          description: "Abastecimento registrado com sucesso!"
+        })
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar registro de combustível:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível registrar o abastecimento",
+        variant: "destructive"
+      })
+    }
   }
 
   return (
@@ -124,7 +228,7 @@ export default function HomePage() {
 
             {showVehicleForm && <VehicleForm onSubmit={addVehicle} onCancel={() => setShowVehicleForm(false)} />}
 
-            <VehicleList vehicles={vehicles} />
+            <VehicleList vehicles={vehicles} onDelete={deleteVehicle} />
           </div>
         )}
 
@@ -147,10 +251,18 @@ export default function HomePage() {
             )}
 
             {showFuelForm && (
-              <FuelRecordForm vehicles={vehicles} onSubmit={addFuelRecord} onCancel={() => setShowFuelForm(false)} />
+              <FuelRecordForm 
+                vehicles={vehicles} 
+                onSubmit={addFuelRecord} 
+                onCancel={() => setShowFuelForm(false)} 
+              />
             )}
 
-            <FuelRecordsList fuelRecords={fuelRecords} vehicles={vehicles} />
+            <FuelRecordsList 
+              fuelRecords={fuelRecords} 
+              vehicles={vehicles} 
+              onDelete={deleteFuelRecord}
+            />
           </div>
         )}
 
