@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp, TrendingDown, Fuel, DollarSign, BarChart3 } from "lucide-react"
+import { TrendingUp, TrendingDown, Fuel, DollarSign, BarChart3, Droplet } from "lucide-react"
 
 interface ConsumptionStatsProps {
   fuelRecords: any[]
@@ -52,6 +52,70 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
     }
   }
 
+  // Função para agrupar registros por mês
+  const groupByMonth = (records: any[]) => {
+    const months: { [key: string]: any[] } = {}
+    
+    records.forEach(record => {
+      const date = new Date(record.created_at)
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      
+      if (!months[monthKey]) {
+        months[monthKey] = []
+      }
+      months[monthKey].push(record)
+    })
+    
+    return months
+  }
+
+  // Função para calcular estatísticas por mês
+  const calculateMonthlyStats = (records: any[]) => {
+    const months = groupByMonth(records)
+    const stats = []
+
+    for (const [month, monthRecords] of Object.entries(months)) {
+      const totalCost = monthRecords.reduce((sum, record) => sum + record.total_cost, 0)
+      const totalLiters = monthRecords.reduce((sum, record) => sum + record.fuel_amount, 0)
+      const avgPricePerLiter = totalCost / totalLiters
+
+      stats.push({
+        month,
+        totalCost,
+        totalLiters,
+        avgPricePerLiter,
+        records: monthRecords
+      })
+    }
+
+    return stats.sort((a, b) => b.month.localeCompare(a.month))
+  }
+
+  // Função para calcular totais gerais
+  const calculateTotals = (records: any[]) => {
+    const totalCost = records.reduce((sum, record) => sum + record.total_cost, 0)
+    const totalLiters = records.reduce((sum, record) => sum + record.fuel_amount, 0)
+    const avgPricePerLiter = totalCost / totalLiters
+
+    return {
+      totalCost,
+      totalLiters,
+      avgPricePerLiter
+    }
+  }
+
+  const monthlyStats = calculateMonthlyStats(fuelRecords)
+  const totals = calculateTotals(fuelRecords)
+
+  // Função para formatar mês
+  const formatMonth = (monthKey: string) => {
+    const [year, month] = monthKey.split('-')
+    return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', {
+      month: 'long',
+      year: 'numeric'
+    })
+  }
+
   if (fuelRecords.length === 0) {
     return (
       <Card>
@@ -68,6 +132,92 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
 
   return (
     <div className="space-y-6">
+      {/* Cards de Totais */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Gasto Total</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">R$ {totals.totalCost.toFixed(2)}</div>
+            <p className="text-xs text-gray-500">
+              Média de R$ {totals.avgPricePerLiter.toFixed(2)}/L
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Litros</CardTitle>
+            <Droplet className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totals.totalLiters.toFixed(1)}L</div>
+            <p className="text-xs text-gray-500">
+              {fuelRecords.length} abastecimentos
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Média Mensal</CardTitle>
+            <TrendingUp className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              R$ {(totals.totalCost / monthlyStats.length).toFixed(2)}
+            </div>
+            <p className="text-xs text-gray-500">
+              {monthlyStats.length} meses registrados
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Estatísticas Mensais */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Estatísticas Mensais</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {monthlyStats.map((stat) => (
+              <div key={stat.month} className="flex flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">{formatMonth(stat.month)}</h3>
+                  <span className="text-sm text-gray-500">
+                    {stat.records.length} abastecimentos
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <DollarSign className="h-4 w-4 text-green-500" />
+                    <div>
+                      <p className="text-sm font-medium">R$ {stat.totalCost.toFixed(2)}</p>
+                      <p className="text-xs text-gray-500">
+                        Média: R$ {stat.avgPricePerLiter.toFixed(2)}/L
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Droplet className="h-4 w-4 text-blue-500" />
+                    <div>
+                      <p className="text-sm font-medium">{stat.totalLiters.toFixed(1)}L</p>
+                      <p className="text-xs text-gray-500">
+                        {stat.records.length} registros
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="h-px bg-gray-200" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {vehicles.map((vehicle) => {
         const stats = getVehicleStats(vehicle.id)
 

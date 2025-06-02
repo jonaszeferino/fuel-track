@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useState } from "react"
+import { cn } from "@/lib/utils"
 
 interface FuelRecordsListProps {
   fuelRecords: any[]
