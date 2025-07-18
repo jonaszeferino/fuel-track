@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Car, Fuel, TrendingUp } from "lucide-react"
+import { Plus, Car, Fuel, TrendingUp, AlertCircle } from "lucide-react"
 import { VehicleForm } from "@/components/vehicle-form"
 import { FuelRecordForm } from "@/components/fuel-record-form"
 import { VehicleList } from "@/components/vehicle-list"
@@ -19,10 +19,30 @@ export default function HomePage() {
   const [fuelRecords, setFuelRecords] = useState([])
   const [showVehicleForm, setShowVehicleForm] = useState(false)
   const [showFuelForm, setShowFuelForm] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [hasError, setHasError] = useState(false)
 
   useEffect(() => {
-    fetchVehicles()
-    fetchFuelRecords()
+    const initializeApp = async () => {
+      try {
+        setIsLoading(true)
+        setHasError(false)
+        await fetchVehicles()
+        await fetchFuelRecords()
+      } catch (error) {
+        console.error('Erro ao inicializar aplicação:', error)
+        setHasError(true)
+        toast({
+          title: "Erro de Conexão",
+          description: "Não foi possível conectar ao banco de dados. Verifique as configurações.",
+          variant: "destructive"
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    initializeApp()
   }, [])
 
   const fetchVehicles = async () => {
@@ -184,97 +204,131 @@ export default function HomePage() {
           <p className="text-sm md:text-base text-gray-600">Gerencie seus veículos e monitore o consumo de combustível</p>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap gap-1 mb-6 bg-white rounded-lg p-1 shadow-sm">
-          <button
-            onClick={() => setActiveTab("vehicles")}
-            className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-colors text-sm md:text-base ${
-              activeTab === "vehicles" ? "bg-blue-500 text-white" : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            <Car className="w-4 h-4" />
-            <span>Veículos</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("fuel")}
-            className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-colors text-sm md:text-base ${
-              activeTab === "fuel" ? "bg-blue-500 text-white" : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            <Fuel className="w-4 h-4" />
-            <span>Abastecimentos</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("stats")}
-            className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-colors text-sm md:text-base ${
-              activeTab === "stats" ? "bg-blue-500 text-white" : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" />
-            <span>Estatísticas</span>
-          </button>
-        </div>
-
-        {/* Content */}
-        {activeTab === "vehicles" && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-xl font-semibold">Meus Veículos</h2>
-              <Button onClick={() => setShowVehicleForm(true)} className="w-full sm:w-auto">
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Veículo
-              </Button>
-            </div>
-
-            {showVehicleForm && <VehicleForm onSubmit={addVehicle} onCancel={() => setShowVehicleForm(false)} />}
-
-            <VehicleList vehicles={vehicles} onDelete={deleteVehicle} />
-          </div>
+        {/* Loading State */}
+        {isLoading && (
+          <Card>
+            <CardContent className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-500">Carregando dados...</p>
+            </CardContent>
+          </Card>
         )}
 
-        {activeTab === "fuel" && (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-xl font-semibold">Registros de Abastecimento</h2>
+        {/* Error State */}
+        {hasError && (
+          <Card>
+            <CardContent className="text-center py-8">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Erro de Conexão</h3>
+              <p className="text-gray-500 mb-4">
+                Não foi possível conectar ao banco de dados. Verifique se as variáveis de ambiente estão configuradas corretamente.
+              </p>
               <Button 
-                onClick={() => setShowFuelForm(true)} 
-                disabled={vehicles.length === 0}
-                className="w-full sm:w-auto"
+                onClick={() => window.location.reload()} 
+                variant="outline"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Abastecimento
+                Tentar Novamente
               </Button>
-            </div>
-
-            {vehicles.length === 0 && (
-              <Card>
-                <CardContent className="text-center py-6">
-                  <p className="text-gray-500">Cadastre um veículo primeiro para registrar abastecimentos</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {showFuelForm && (
-              <FuelRecordForm 
-                vehicles={vehicles} 
-                onSubmit={addFuelRecord} 
-                onCancel={() => setShowFuelForm(false)} 
-              />
-            )}
-
-            <FuelRecordsList 
-              fuelRecords={fuelRecords} 
-              vehicles={vehicles} 
-              onDelete={deleteFuelRecord}
-            />
-          </div>
+            </CardContent>
+          </Card>
         )}
 
-        {activeTab === "stats" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Estatísticas de Consumo</h2>
-            <ConsumptionStats fuelRecords={fuelRecords} vehicles={vehicles} />
-          </div>
+        {/* Main Content - Only show if not loading and no error */}
+        {!isLoading && !hasError && (
+          <>
+            {/* Navigation Tabs */}
+            <div className="flex flex-wrap gap-1 mb-6 bg-white rounded-lg p-1 shadow-sm">
+              <button
+                onClick={() => setActiveTab("vehicles")}
+                className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-colors text-sm md:text-base ${
+                  activeTab === "vehicles" ? "bg-blue-500 text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <Car className="w-4 h-4" />
+                <span>Veículos</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("fuel")}
+                className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-colors text-sm md:text-base ${
+                  activeTab === "fuel" ? "bg-blue-500 text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <Fuel className="w-4 h-4" />
+                <span>Abastecimentos</span>
+              </button>
+              <button
+                onClick={() => setActiveTab("stats")}
+                className={`flex-1 md:flex-none flex items-center justify-center space-x-2 px-3 py-2 rounded-md transition-colors text-sm md:text-base ${
+                  activeTab === "stats" ? "bg-blue-500 text-white" : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <TrendingUp className="w-4 h-4" />
+                <span>Estatísticas</span>
+              </button>
+            </div>
+
+            {/* Content */}
+            {activeTab === "vehicles" && (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h2 className="text-xl font-semibold">Meus Veículos</h2>
+                  <Button onClick={() => setShowVehicleForm(true)} className="w-full sm:w-auto">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Veículo
+                  </Button>
+                </div>
+
+                {showVehicleForm && <VehicleForm onSubmit={addVehicle} onCancel={() => setShowVehicleForm(false)} />}
+
+                <VehicleList vehicles={vehicles} onDelete={deleteVehicle} />
+              </div>
+            )}
+
+            {activeTab === "fuel" && (
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h2 className="text-xl font-semibold">Registros de Abastecimento</h2>
+                  <Button 
+                    onClick={() => setShowFuelForm(true)} 
+                    disabled={vehicles.length === 0}
+                    className="w-full sm:w-auto"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Novo Abastecimento
+                  </Button>
+                </div>
+
+                {vehicles.length === 0 && (
+                  <Card>
+                    <CardContent className="text-center py-6">
+                      <p className="text-gray-500">Cadastre um veículo primeiro para registrar abastecimentos</p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {showFuelForm && (
+                  <FuelRecordForm 
+                    vehicles={vehicles} 
+                    onSubmit={addFuelRecord} 
+                    onCancel={() => setShowFuelForm(false)} 
+                  />
+                )}
+
+                <FuelRecordsList 
+                  fuelRecords={fuelRecords} 
+                  vehicles={vehicles} 
+                  onDelete={deleteFuelRecord}
+                />
+              </div>
+            )}
+
+            {activeTab === "stats" && (
+              <div className="space-y-4">
+                <h2 className="text-xl font-semibold">Estatísticas de Consumo</h2>
+                <ConsumptionStats fuelRecords={fuelRecords} vehicles={vehicles} />
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

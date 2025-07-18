@@ -23,6 +23,7 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
       const consumption = (current.fuel_amount / distance) * 100
       consumptions.push({
         consumption,
+        kmPerLiter: distance / current.fuel_amount,
         distance,
         fuelAmount: current.fuel_amount,
         cost: current.total_cost,
@@ -37,17 +38,24 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
     const consumptions = calculateConsumption(vehicleId)
     if (!consumptions || consumptions.length === 0) return null
 
-    const avgConsumption = consumptions.reduce((sum, c) => sum + c.consumption, 0) / consumptions.length
+    // Buscar todos os registros do veículo para calcular totais
+    const allVehicleRecords = fuelRecords.filter((record) => record.vehicle_id === vehicleId)
+    
     const totalDistance = consumptions.reduce((sum, c) => sum + c.distance, 0)
-    const totalFuel = consumptions.reduce((sum, c) => sum + c.fuelAmount, 0)
-    const totalCost = consumptions.reduce((sum, c) => sum + c.cost, 0)
+    
+    // Calcular totais usando todos os registros do veículo
+    const totalFuel = allVehicleRecords.reduce((sum, record) => sum + record.fuel_amount, 0)
+    const totalCost = allVehicleRecords.reduce((sum, record) => sum + record.total_cost, 0)
+    
+    // Calcular km/l corretamente: distância total / total de litros
+    const avgKmPerLiter = totalFuel > 0 ? totalDistance / totalFuel : 0
 
     return {
-      avgConsumption: avgConsumption.toFixed(1),
+      avgKmPerLiter: avgKmPerLiter.toFixed(1),
       totalDistance,
       totalFuel: totalFuel.toFixed(1),
       totalCost: totalCost.toFixed(2),
-      costPerKm: (totalCost / totalDistance).toFixed(3),
+      costPerKm: totalDistance > 0 ? (totalCost / totalDistance).toFixed(3) : "0.000",
       consumptions,
     }
   }
@@ -75,9 +83,9 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
     const stats = []
 
     for (const [month, monthRecords] of Object.entries(months)) {
-      const totalCost = monthRecords.reduce((sum, record) => sum + record.total_cost, 0)
-      const totalLiters = monthRecords.reduce((sum, record) => sum + record.fuel_amount, 0)
-      const avgPricePerLiter = totalCost / totalLiters
+      const totalCost = monthRecords.reduce((sum, record) => sum + (record.total_cost || 0), 0)
+      const totalLiters = monthRecords.reduce((sum, record) => sum + (record.fuel_amount || 0), 0)
+      const avgPricePerLiter = totalLiters > 0 ? totalCost / totalLiters : 0
 
       stats.push({
         month,
@@ -93,9 +101,9 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
 
   // Função para calcular totais gerais
   const calculateTotals = (records: any[]) => {
-    const totalCost = records.reduce((sum, record) => sum + record.total_cost, 0)
-    const totalLiters = records.reduce((sum, record) => sum + record.fuel_amount, 0)
-    const avgPricePerLiter = totalCost / totalLiters
+    const totalCost = records.reduce((sum, record) => sum + (record.total_cost || 0), 0)
+    const totalLiters = records.reduce((sum, record) => sum + (record.fuel_amount || 0), 0)
+    const avgPricePerLiter = totalLiters > 0 ? totalCost / totalLiters : 0
 
     return {
       totalCost,
@@ -104,8 +112,32 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
     }
   }
 
+  // Função para calcular a última média de km/l
+  const calculateLastAverageKmPerLiter = () => {
+    let lastKmPerLiter = 0
+    let lastDate = new Date(0)
+    
+    vehicles.forEach(vehicle => {
+      const consumptions = calculateConsumption(vehicle.id)
+      if (consumptions && consumptions.length > 0) {
+        // Pegar o último registro de cada veículo
+        const lastConsumption = consumptions[consumptions.length - 1]
+        const consumptionDate = new Date(lastConsumption.date)
+        
+        // Manter o registro mais recente
+        if (consumptionDate > lastDate) {
+          lastDate = consumptionDate
+          lastKmPerLiter = lastConsumption.kmPerLiter
+        }
+      }
+    })
+    
+    return lastKmPerLiter
+  }
+
   const monthlyStats = calculateMonthlyStats(fuelRecords)
   const totals = calculateTotals(fuelRecords)
+  const lastAverageKmPerLiter = calculateLastAverageKmPerLiter()
 
   // Função para formatar mês
   const formatMonth = (monthKey: string) => {
@@ -133,7 +165,7 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
   return (
     <div className="space-y-6">
       {/* Cards de Totais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Gasto Total</CardTitle>
@@ -167,10 +199,23 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              R$ {(totals.totalCost / monthlyStats.length).toFixed(2)}
+              R$ {monthlyStats.length > 0 ? (totals.totalCost / monthlyStats.length).toFixed(2) : "0.00"}
             </div>
             <p className="text-xs text-gray-500">
               {monthlyStats.length} meses registrados
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Último km/l</CardTitle>
+            <Fuel className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{lastAverageKmPerLiter.toFixed(1)}</div>
+            <p className="text-xs text-gray-500">
+              km/l (último registro)
             </p>
           </CardContent>
         </Card>
@@ -262,11 +307,11 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="text-center p-4 bg-blue-50 rounded-lg">
-                  <Fuel className="w-6 h-6 text-blue-500 mx-auto mb-2" />
-                  <p className="text-sm text-gray-600">Consumo Médio</p>
-                  <p className="text-xl font-bold text-blue-600">{stats.avgConsumption}</p>
-                  <p className="text-xs text-gray-500">L/100km</p>
+                <div className="text-center p-4 bg-indigo-50 rounded-lg">
+                  <TrendingUp className="w-6 h-6 text-indigo-500 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">Eficiência Média</p>
+                  <p className="text-xl font-bold text-indigo-600">{stats.avgKmPerLiter}</p>
+                  <p className="text-xs text-gray-500">km/l</p>
                 </div>
 
                 <div className="text-center p-4 bg-green-50 rounded-lg">
@@ -292,16 +337,27 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
               </div>
 
               <div className="space-y-2">
-                <h4 className="font-semibold text-gray-700">Histórico de Consumo</h4>
+                <h4 className="font-semibold text-gray-700">Histórico de Eficiência</h4>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
                   {stats.consumptions
                     .slice(-5)
                     .reverse()
                     .map((consumption, index) => (
                       <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                        <span className="text-sm">{new Date(consumption.date).toLocaleDateString("pt-BR")}</span>
-                        <span className="font-semibold">{consumption.consumption.toFixed(1)} L/100km</span>
-                        <span className="text-sm text-gray-600">{consumption.distance} km</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{new Date(consumption.date).toLocaleDateString("pt-BR")}</span>
+                          <span className="text-xs text-gray-500">{consumption.distance} km percorridos</span>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-right">
+                            <span className="text-sm text-indigo-600 font-medium">{consumption.kmPerLiter.toFixed(1)} km/l</span>
+                            <span className="text-xs text-gray-500 block">{consumption.consumption.toFixed(1)} L/100km</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm text-blue-600">{consumption.fuelAmount}L</span>
+                            <span className="text-xs text-gray-500 block">R$ {consumption.cost.toFixed(2)}</span>
+                          </div>
+                        </div>
                       </div>
                     ))}
                 </div>
