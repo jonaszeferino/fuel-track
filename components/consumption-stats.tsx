@@ -135,6 +135,27 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
     return lastKmPerLiter
   }
 
+  // Função para calcular eficiência entre os dois últimos abastecimentos do veículo mais recente
+  const calculateLastTwoKmPerLiter = () => {
+    let lastVehicleId = null
+    let lastDate = new Date(0)
+    // Encontrar o veículo do último abastecimento
+    fuelRecords.forEach(record => {
+      const date = new Date(record.created_at)
+      if (date > lastDate) {
+        lastDate = date
+        lastVehicleId = record.vehicle_id
+      }
+    })
+    if (!lastVehicleId) return 0
+    const consumptions = calculateConsumption(lastVehicleId)
+    if (!consumptions || consumptions.length === 0) return 0
+    // Pega o último cálculo de km/l desse veículo
+    return consumptions[consumptions.length - 1].kmPerLiter
+  }
+
+  const lastTwoKmPerLiter = calculateLastTwoKmPerLiter()
+
   const monthlyStats = calculateMonthlyStats(fuelRecords)
   const totals = calculateTotals(fuelRecords)
   const lastAverageKmPerLiter = calculateLastAverageKmPerLiter()
@@ -194,15 +215,15 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Média Mensal</CardTitle>
+            <CardTitle className="text-sm font-medium">Eficiência Média (2 últimos)</CardTitle>
             <TrendingUp className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              R$ {monthlyStats.length > 0 ? (totals.totalCost / monthlyStats.length).toFixed(2) : "0.00"}
+              {lastTwoKmPerLiter.toFixed(1)} km/l
             </div>
             <p className="text-xs text-gray-500">
-              {monthlyStats.length} meses registrados
+              Entre os 2 últimos abastecimentos do veículo mais recente
             </p>
           </CardContent>
         </Card>
@@ -235,6 +256,10 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
                   <span className="text-sm text-gray-500">
                     {stat.records.length} abastecimentos
                   </span>
+                </div>
+                <div className="flex items-center space-x-4 mb-1">
+                  <span className="text-xs text-green-700 font-semibold">Total: R$ {stat.totalCost.toFixed(2)}</span>
+                  <span className="text-xs text-blue-700 font-semibold">Total: {stat.totalLiters.toFixed(1)}L</span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="flex items-center space-x-2">
@@ -289,6 +314,12 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
         const trend =
           lastConsumption && previousConsumption ? lastConsumption.consumption - previousConsumption.consumption : 0
 
+        // Calcular eficiência entre os dois últimos abastecimentos desse veículo
+        let lastTwoKmPerLiter = null
+        if (stats.consumptions.length >= 1) {
+          lastTwoKmPerLiter = stats.consumptions[stats.consumptions.length - 1].kmPerLiter
+        }
+
         return (
           <Card key={vehicle.id}>
             <CardHeader>
@@ -310,8 +341,8 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
                 <div className="text-center p-4 bg-indigo-50 rounded-lg">
                   <TrendingUp className="w-6 h-6 text-indigo-500 mx-auto mb-2" />
                   <p className="text-sm text-gray-600">Eficiência Média</p>
-                  <p className="text-xl font-bold text-indigo-600">{stats.avgKmPerLiter}</p>
-                  <p className="text-xs text-gray-500">km/l</p>
+                  <p className="text-xl font-bold text-indigo-600">{lastTwoKmPerLiter !== null ? lastTwoKmPerLiter.toFixed(1) : '-'}</p>
+                  <p className="text-xs text-gray-500">km/l (2 últimos)</p>
                 </div>
 
                 <div className="text-center p-4 bg-green-50 rounded-lg">
