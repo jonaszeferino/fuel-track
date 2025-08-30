@@ -10,26 +10,58 @@ interface ConsumptionStatsProps {
 export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProps) {
   const calculateConsumption = (vehicleId: number) => {
     const vehicleRecords = fuelRecords
-      .filter((record) => record.vehicle_id === vehicleId && record.full_tank)
+      .filter((record) => record.vehicle_id === vehicleId)
       .sort((a, b) => a.odometer - b.odometer)
 
     if (vehicleRecords.length < 2) return null
 
     const consumptions = []
-    for (let i = 1; i < vehicleRecords.length; i++) {
-      const current = vehicleRecords[i]
-      const previous = vehicleRecords[i - 1]
-      const distance = current.odometer - previous.odometer
-      const consumption = (current.fuel_amount / distance) * 100
-      consumptions.push({
-        consumption,
-        kmPerLiter: distance / current.fuel_amount,
-        distance,
-        fuelAmount: current.fuel_amount,
-        cost: current.total_cost,
-        date: current.created_at,
-      })
-    }
+    
+    // Encontrar todos os registros com tanque cheio
+    const fullTankRecords = vehicleRecords.filter(record => record.full_tank)
+    
+    if (fullTankRecords.length < 2) return null
+    
+    // Pegar apenas os dois últimos tanques cheios
+    const lastTwoFullTanks = fullTankRecords.slice(-2)
+    if (lastTwoFullTanks.length < 2) return null
+    
+    const previousFullTank = lastTwoFullTanks[0]  // Primeiro tanque cheio (apenas referência)
+    const currentFullTank = lastTwoFullTanks[1]   // Segundo tanque cheio (consumo real)
+    
+    // Encontrar todos os registros ENTRE os dois tanques cheios (excluindo o primeiro)
+    const recordsBetween = vehicleRecords.filter(record => 
+      record.odometer > previousFullTank.odometer && 
+      record.odometer <= currentFullTank.odometer
+    )
+    
+    // Calcular distância total percorrida
+    const distance = currentFullTank.odometer - previousFullTank.odometer
+    
+    // Calcular total de combustível consumido (EXCLUINDO o primeiro tanque cheio)
+    const totalFuelConsumed = recordsBetween.reduce((sum, record) => sum + record.fuel_amount, 0)
+    
+    // Calcular consumo em L/100km
+    const consumption = (totalFuelConsumed / distance) * 100
+    
+    // Calcular km/l
+    const kmPerLiter = distance / totalFuelConsumed
+    
+    // Calcular custo total (EXCLUINDO o primeiro tanque cheio)
+    const totalCost = recordsBetween.reduce((sum, record) => sum + record.total_cost, 0)
+    
+    consumptions.push({
+      consumption,
+      kmPerLiter,
+      distance,
+      fuelAmount: totalFuelConsumed,
+      cost: totalCost,
+      date: currentFullTank.created_at,
+      recordsCount: recordsBetween.length,
+      startOdometer: previousFullTank.odometer,
+      endOdometer: currentFullTank.odometer,
+      referenceOdometer: previousFullTank.odometer  // Apenas referência
+    })
 
     return consumptions
   }
@@ -41,14 +73,16 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
     // Buscar todos os registros do veículo para calcular totais
     const allVehicleRecords = fuelRecords.filter((record) => record.vehicle_id === vehicleId)
     
-    const totalDistance = consumptions.reduce((sum, c) => sum + c.distance, 0)
+    // Usar o único resultado de consumo calculado (dos dois últimos tanques cheios)
+    const consumption = consumptions[0]
+    const totalDistance = consumption.distance
     
     // Calcular totais usando todos os registros do veículo
     const totalFuel = allVehicleRecords.reduce((sum, record) => sum + record.fuel_amount, 0)
     const totalCost = allVehicleRecords.reduce((sum, record) => sum + record.total_cost, 0)
     
-    // Calcular km/l corretamente: distância total / total de litros
-    const avgKmPerLiter = totalFuel > 0 ? totalDistance / totalFuel : 0
+    // Calcular km/l usando os dados dos dois últimos tanques cheios
+    const avgKmPerLiter = consumption.kmPerLiter
 
     return {
       avgKmPerLiter: avgKmPerLiter.toFixed(1),
@@ -120,7 +154,7 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
     vehicles.forEach(vehicle => {
       const consumptions = calculateConsumption(vehicle.id)
       if (consumptions && consumptions.length > 0) {
-        // Pegar o último registro de cada veículo
+        // Pegar o último registro de cada veículo (que já considera todos os abastecimentos intermediários)
         const lastConsumption = consumptions[consumptions.length - 1]
         const consumptionDate = new Date(lastConsumption.date)
         
@@ -148,9 +182,11 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
       }
     })
     if (!lastVehicleId) return 0
+    
     const consumptions = calculateConsumption(lastVehicleId)
     if (!consumptions || consumptions.length === 0) return 0
-    // Pega o último cálculo de km/l desse veículo
+    
+    // Pega o último cálculo de km/l desse veículo (que já considera todos os abastecimentos intermediários)
     return consumptions[consumptions.length - 1].kmPerLiter
   }
 
@@ -342,7 +378,7 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
                   <TrendingUp className="w-6 h-6 text-indigo-500 mx-auto mb-2" />
                   <p className="text-sm text-gray-600">Eficiência Média</p>
                   <p className="text-xl font-bold text-indigo-600">{lastTwoKmPerLiter !== null ? lastTwoKmPerLiter.toFixed(1) : '-'}</p>
-                  <p className="text-xs text-gray-500">km/l (2 últimos)</p>
+                  <p className="text-xs text-gray-500">km/l (2 últimos tanques cheios)</p>
                 </div>
 
                 <div className="text-center p-4 bg-green-50 rounded-lg">
@@ -368,29 +404,31 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
               </div>
 
               <div className="space-y-2">
-                <h4 className="font-semibold text-gray-700">Histórico de Eficiência</h4>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {stats.consumptions
-                    .slice(-5)
-                    .reverse()
-                    .map((consumption, index) => (
-                      <div key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium">{new Date(consumption.date).toLocaleDateString("pt-BR")}</span>
-                          <span className="text-xs text-gray-500">{consumption.distance} km percorridos</span>
+                <h4 className="font-semibold text-gray-700">Eficiência dos Dois Últimos Tanques Cheios</h4>
+                <div className="space-y-2">
+                  {stats.consumptions.map((consumption, index) => (
+                    <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">{new Date(consumption.date).toLocaleDateString("pt-BR")}</span>
+                        <span className="text-sm text-gray-600">{consumption.distance} km percorridos</span>
+                        <span className="text-xs text-blue-600">
+                          Referência: {consumption.startOdometer.toLocaleString()} km → Final: {consumption.endOdometer.toLocaleString()} km
+                        </span>
+                        <span className="text-xs text-purple-600">{consumption.recordsCount} abastecimentos considerados</span>
+                        <span className="text-xs text-gray-500">(Primeiro tanque cheio é apenas referência de odômetro)</span>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <span className="text-lg text-indigo-600 font-bold">{consumption.kmPerLiter.toFixed(1)} km/l</span>
+                          <span className="text-sm text-gray-500 block">{consumption.consumption.toFixed(1)} L/100km</span>
                         </div>
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <span className="text-sm text-indigo-600 font-medium">{consumption.kmPerLiter.toFixed(1)} km/l</span>
-                            <span className="text-xs text-gray-500 block">{consumption.consumption.toFixed(1)} L/100km</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-sm text-blue-600">{consumption.fuelAmount}L</span>
-                            <span className="text-xs text-gray-500 block">R$ {consumption.cost.toFixed(2)}</span>
-                          </div>
+                        <div className="text-right">
+                          <span className="text-sm text-blue-600">{consumption.fuelAmount}L</span>
+                          <span className="text-xs text-gray-500 block">R$ {consumption.cost.toFixed(2)}</span>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
                 </div>
               </div>
             </CardContent>
