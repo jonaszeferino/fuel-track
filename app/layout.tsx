@@ -1,12 +1,6 @@
 import type { Metadata, Viewport } from 'next'
-import { Plus_Jakarta_Sans } from 'next/font/google'
 import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
-
-const fontSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  variable: '--font-sans',
-})
 
 export const metadata: Metadata = {
   title: 'FuelTrack',
@@ -32,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${fontSans.variable} min-h-dvh bg-background font-sans antialiased`}>
+      <body className="min-h-dvh bg-background font-sans antialiased">
         {children}
         <Toaster />
       </body>

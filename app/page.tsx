@@ -8,7 +8,7 @@ import { FuelRecordForm } from "@/components/fuel-record-form"
 import { VehicleList } from "@/components/vehicle-list"
 import { FuelRecordsList } from "@/components/fuel-records-list"
 import { ConsumptionStats } from "@/components/consumption-stats"
-import { supabase } from "@/lib/supabase"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 import {
   Sheet,
@@ -40,6 +40,17 @@ export default function HomePage() {
       try {
         setIsLoading(true)
         setHasError(false)
+
+        if (!isSupabaseConfigured) {
+          setHasError(true)
+          toast({
+            title: "Erro de Conexão",
+            description: "Não foi possível conectar ao banco de dados. Verifique as configurações.",
+            variant: "destructive"
+          })
+          return
+        }
+
         await fetchVehicles()
         await fetchFuelRecords()
       } catch (error) {
