@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
-import { Database } from "@/types/supabase"
 
 interface Vehicle {
   id: number
@@ -33,12 +31,13 @@ interface FuelRecordFormProps {
   vehicles: Vehicle[]
   onSubmit: (record: FuelRecord) => void
   onCancel: () => void
+  hideChrome?: boolean
 }
 
-export function FuelRecordForm({ vehicles, onSubmit, onCancel }: FuelRecordFormProps) {
+export function FuelRecordForm({ vehicles, onSubmit, onCancel, hideChrome = false }: FuelRecordFormProps) {
   const { toast } = useToast()
   const [formData, setFormData] = useState({
-    vehicle_id: "",
+    vehicle_id: vehicles.length === 1 ? vehicles[0].id.toString() : "",
     odometer: "",
     fuel_amount: "",
     fuel_price_per_unit: "",
@@ -50,7 +49,6 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel }: FuelRecordFormP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Validação dos campos obrigatórios
     if (!formData.vehicle_id || !formData.odometer || !formData.fuel_amount || 
         !formData.fuel_price_per_unit || !formData.fuel_type) {
       toast({
@@ -61,7 +59,6 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel }: FuelRecordFormP
       return
     }
     
-    // Conversão e validação dos valores
     const fuelAmount = parseFloat(formData.fuel_amount)
     const pricePerUnit = parseFloat(formData.fuel_price_per_unit)
     const odometer = parseInt(formData.odometer)
@@ -100,18 +97,18 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel }: FuelRecordFormP
   }
 
   const fuelTypes = ["Gasolina", "Etanol", "Diesel", "GNV"]
+  const total =
+    formData.fuel_amount && formData.fuel_price_per_unit
+      ? (parseFloat(formData.fuel_amount) * parseFloat(formData.fuel_price_per_unit)).toFixed(2)
+      : "0.00"
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Registrar Abastecimento</CardTitle>
-      </CardHeader>
-      <CardContent>
+  const form = (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="vehicle">Veículo *</Label>
               <Select 
+                value={formData.vehicle_id || undefined}
                 onValueChange={(value) => setFormData({ ...formData, vehicle_id: value })}
                 required
               >
@@ -133,6 +130,7 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel }: FuelRecordFormP
               <Input
                 id="odometer"
                 type="number"
+                inputMode="numeric"
                 placeholder="Ex: 15000"
                 value={formData.odometer}
                 onChange={(e) => setFormData({ ...formData, odometer: e.target.value })}
@@ -142,36 +140,9 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel }: FuelRecordFormP
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="fuel_amount">Litros Abastecidos *</Label>
-              <Input
-                id="fuel_amount"
-                type="number"
-                step="0.01"
-                placeholder="Ex: 45.5"
-                value={formData.fuel_amount}
-                onChange={(e) => setFormData({ ...formData, fuel_amount: e.target.value })}
-                required
-                min="0.01"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fuel_price">Preço por Litro (R$) *</Label>
-              <Input
-                id="fuel_price"
-                type="number"
-                step="0.01"
-                placeholder="Ex: 5.50"
-                value={formData.fuel_price_per_unit}
-                onChange={(e) => setFormData({ ...formData, fuel_price_per_unit: e.target.value })}
-                required
-                min="0.01"
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="fuel_type">Tipo de Combustível *</Label>
               <Select 
+                value={formData.fuel_type || undefined}
                 onValueChange={(value) => setFormData({ ...formData, fuel_type: value })}
                 required
               >
@@ -189,23 +160,56 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel }: FuelRecordFormP
             </div>
 
             <div className="space-y-2">
-              <Label>
-                Total: R${" "}
-                {formData.fuel_amount && formData.fuel_price_per_unit
-                  ? (parseFloat(formData.fuel_amount) * parseFloat(formData.fuel_price_per_unit)).toFixed(2)
-                  : "0.00"}
-              </Label>
+              <Label htmlFor="fuel_amount">Litros Abastecidos *</Label>
+              <Input
+                id="fuel_amount"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                placeholder="Ex: 45.5"
+                value={formData.fuel_amount}
+                onChange={(e) => setFormData({ ...formData, fuel_amount: e.target.value })}
+                required
+                min="0.01"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fuel_price">Preço por Litro (R$) *</Label>
+              <Input
+                id="fuel_price"
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                placeholder="Ex: 5.50"
+                value={formData.fuel_price_per_unit}
+                onChange={(e) => setFormData({ ...formData, fuel_price_per_unit: e.target.value })}
+                required
+                min="0.01"
+              />
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Total do abastecimento</p>
+            <p className="text-3xl font-extrabold text-[#165a4a]">R$ {total}</p>
+          </div>
+
+          <label
+            htmlFor="full_tank"
+            className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3"
+          >
             <Checkbox
               id="full_tank"
+              className="h-5 w-5"
               checked={formData.full_tank}
               onCheckedChange={(checked) => setFormData({ ...formData, full_tank: checked as boolean })}
             />
-            <Label htmlFor="full_tank">Tanque cheio</Label>
-          </div>
+            <div>
+              <span className="font-medium text-slate-900">Tanque cheio</span>
+              <p className="text-xs text-slate-500">Necessário para calcular o consumo em km/l</p>
+            </div>
+          </label>
 
           <div className="space-y-2">
             <Label htmlFor="notes">Observações</Label>
@@ -217,13 +221,28 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel }: FuelRecordFormP
             />
           </div>
 
-          <div className="flex space-x-2 pt-4">
-            <Button type="submit">Registrar Abastecimento</Button>
-            <Button type="button" variant="outline" onClick={onCancel}>
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
+            <Button type="button" variant="outline" onClick={onCancel} className="min-h-11 w-full sm:w-auto">
               Cancelar
+            </Button>
+            <Button type="submit" className="min-h-11 w-full sm:w-auto">
+              Registrar Abastecimento
             </Button>
           </div>
         </form>
+  )
+
+  if (hideChrome) {
+    return form
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Registrar Abastecimento</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {form}
       </CardContent>
     </Card>
   )

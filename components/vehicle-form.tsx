@@ -12,9 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface VehicleFormProps {
   onSubmit: (vehicle: any) => void
   onCancel: () => void
+  hideChrome?: boolean
 }
 
-export function VehicleForm({ onSubmit, onCancel }: VehicleFormProps) {
+export function VehicleForm({ onSubmit, onCancel, hideChrome = false }: VehicleFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     tank_capacity: "",
@@ -34,14 +35,9 @@ export function VehicleForm({ onSubmit, onCancel }: VehicleFormProps) {
   const currentYear = new Date().getFullYear()
   const years = Array.from({ length: 30 }, (_, i) => currentYear - i)
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Cadastrar Novo Veículo</CardTitle>
-      </CardHeader>
-      <CardContent>
+  const form = (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Nome do Veículo</Label>
               <Input
@@ -65,7 +61,11 @@ export function VehicleForm({ onSubmit, onCancel }: VehicleFormProps) {
 
             <div className="space-y-2">
               <Label htmlFor="year">Ano</Label>
-              <Select onValueChange={(value) => setFormData({ ...formData, year: value })}>
+              <Select
+                value={formData.year || undefined}
+                onValueChange={(value) => setFormData({ ...formData, year: value })}
+                required
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o ano" />
                 </SelectTrigger>
@@ -84,6 +84,7 @@ export function VehicleForm({ onSubmit, onCancel }: VehicleFormProps) {
               <Input
                 id="tank_capacity"
                 type="number"
+                inputMode="decimal"
                 step="0.1"
                 placeholder="Ex: 50"
                 value={formData.tank_capacity}
@@ -93,13 +94,28 @@ export function VehicleForm({ onSubmit, onCancel }: VehicleFormProps) {
             </div>
           </div>
 
-          <div className="flex space-x-2 pt-4">
-            <Button type="submit">Cadastrar Veículo</Button>
-            <Button type="button" variant="outline" onClick={onCancel}>
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row">
+            <Button type="button" variant="outline" onClick={onCancel} className="min-h-11 w-full sm:w-auto">
               Cancelar
+            </Button>
+            <Button type="submit" className="min-h-11 w-full sm:w-auto">
+              Cadastrar Veículo
             </Button>
           </div>
         </form>
+  )
+
+  if (hideChrome) {
+    return form
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Cadastrar Novo Veículo</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {form}
       </CardContent>
     </Card>
   )
