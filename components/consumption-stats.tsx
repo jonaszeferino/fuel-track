@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge"
-import { TrendingUp, TrendingDown, Fuel, DollarSign, BarChart3, Droplet } from "lucide-react"
+import { TrendingUp, TrendingDown, Fuel, DollarSign, BarChart3, Droplet, CalendarDays } from "lucide-react"
 
 interface ConsumptionStatsProps {
   fuelRecords: any[]
@@ -197,6 +197,10 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
   const monthlyStats = calculateMonthlyStats(activeFuelRecords)
   const totals = calculateTotals(activeFuelRecords)
   const lastAverageKmPerLiter = calculateLastAverageKmPerLiter()
+  const monthlyAverageCost =
+    monthlyStats.length > 0
+      ? monthlyStats.reduce((sum, stat) => sum + stat.totalCost, 0) / monthlyStats.length
+      : 0
 
   // Função para formatar mês
   const formatMonth = (monthKey: string) => {
@@ -226,7 +230,7 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
         <p className="text-sm text-slate-500">Totais, meses e eficiência por veículo</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <div className="rounded-3xl bg-[#165a4a] p-4 text-white shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-100">Gasto total</p>
@@ -234,6 +238,17 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
           </div>
           <p className="text-2xl font-extrabold">R$ {totals.totalCost.toFixed(2)}</p>
           <p className="mt-1 text-xs text-emerald-100">Média R$ {totals.avgPricePerLiter.toFixed(2)}/L</p>
+        </div>
+
+        <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-emerald-900/5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Média mensal</p>
+            <CalendarDays className="h-4 w-4 text-emerald-600" />
+          </div>
+          <p className="text-2xl font-extrabold text-slate-900">R$ {monthlyAverageCost.toFixed(2)}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {monthlyStats.length} {monthlyStats.length === 1 ? "mês" : "meses"}
+          </p>
         </div>
 
         <div className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-emerald-900/5">

@@ -271,7 +271,7 @@ export default function HomePage() {
               </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100/80">FuelTrack</p>
-                <h1 className="text-xl font-bold leading-tight md:text-3xl">Seu consumo, claro</h1>
+                <h1 className="text-xl font-bold leading-tight md:text-3xl">Controle de combustível</h1>
               </div>
             </div>
             <Button
