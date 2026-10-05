@@ -121,7 +121,13 @@ export function FuelRecordsList({ fuelRecords, vehicles, onDelete, onAdd, onGoTo
                   </p>
                 </div>
                 <p className="text-xs font-medium text-slate-400">
-                  {new Date(record.created_at).toLocaleDateString("pt-BR")} · {record.odometer.toLocaleString()} km
+                  {new Date(record.created_at).toLocaleString("pt-BR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })} · {record.odometer.toLocaleString()} km
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <Badge variant="secondary">{record.fuel_type}</Badge>

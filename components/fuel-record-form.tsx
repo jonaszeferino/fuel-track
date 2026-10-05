@@ -25,6 +25,12 @@ interface FuelRecord {
   fuel_type: string
   full_tank: boolean
   notes: string | null
+  created_at: string
+}
+
+const toDateTimeLocal = (date: Date) => {
+  const pad = (value: number) => String(value).padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 interface FuelRecordFormProps {
@@ -44,13 +50,14 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel, hideChrome = fals
     fuel_type: "",
     full_tank: false,
     notes: "",
+    refueled_at: toDateTimeLocal(new Date()),
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!formData.vehicle_id || !formData.odometer || !formData.fuel_amount || 
-        !formData.fuel_price_per_unit || !formData.fuel_type) {
+        !formData.fuel_price_per_unit || !formData.fuel_type || !formData.refueled_at) {
       toast({
         title: "Atenção",
         description: "Todos os campos obrigatórios devem ser preenchidos",
@@ -82,6 +89,16 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel, hideChrome = fals
       return
     }
 
+    const refueledAt = new Date(formData.refueled_at)
+    if (isNaN(refueledAt.getTime())) {
+      toast({
+        title: "Atenção",
+        description: "Data do abastecimento inválida",
+        variant: "destructive"
+      })
+      return
+    }
+
     const recordData: FuelRecord = {
       vehicle_id: vehicleId,
       odometer: odometer,
@@ -90,7 +107,8 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel, hideChrome = fals
       total_cost: parseFloat((fuelAmount * pricePerUnit).toFixed(2)),
       fuel_type: formData.fuel_type,
       full_tank: formData.full_tank,
-      notes: formData.notes || null
+      notes: formData.notes || null,
+      created_at: refueledAt.toISOString()
     }
 
     onSubmit(recordData)
@@ -123,6 +141,26 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel, hideChrome = fals
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="refueled_at">Data e hora *</Label>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-[#165a4a] underline-offset-2 hover:underline"
+                  onClick={() => setFormData({ ...formData, refueled_at: toDateTimeLocal(new Date()) })}
+                >
+                  Agora
+                </button>
+              </div>
+              <Input
+                id="refueled_at"
+                type="datetime-local"
+                value={formData.refueled_at}
+                onChange={(e) => setFormData({ ...formData, refueled_at: e.target.value })}
+                required
+              />
             </div>
 
             <div className="space-y-2">

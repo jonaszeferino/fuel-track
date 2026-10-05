@@ -220,7 +220,11 @@ export default function HomePage() {
       }
 
       if (data && data.length > 0) {
-        setFuelRecords([data[0], ...fuelRecords])
+        setFuelRecords(
+          [data[0], ...fuelRecords].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )
+        )
         setShowFuelForm(false)
         toast({
           title: "Sucesso",
