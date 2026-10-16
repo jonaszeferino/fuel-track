@@ -11,13 +11,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 
 interface Vehicle {
-  id: number
+  id: string
   name: string
   year: string
 }
 
 interface FuelRecord {
-  vehicle_id: number
+  vehicle_id: string
   odometer: number
   fuel_amount: number
   fuel_price_per_unit: number
@@ -69,9 +69,9 @@ export function FuelRecordForm({ vehicles, onSubmit, onCancel, hideChrome = fals
     const fuelAmount = parseFloat(formData.fuel_amount)
     const pricePerUnit = parseFloat(formData.fuel_price_per_unit)
     const odometer = parseInt(formData.odometer)
-    const vehicleId = parseInt(formData.vehicle_id)
+    const vehicleId = formData.vehicle_id
 
-    if (isNaN(fuelAmount) || isNaN(pricePerUnit) || isNaN(odometer) || isNaN(vehicleId)) {
+    if (isNaN(fuelAmount) || isNaN(pricePerUnit) || isNaN(odometer)) {
       toast({
         title: "Atenção",
         description: "Valores numéricos inválidos",

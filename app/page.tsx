@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Plus, Car, Fuel, TrendingUp, AlertCircle, Gauge } from "lucide-react"
+import type { User } from "@supabase/supabase-js"
+import { Plus, Car, Fuel, TrendingUp, AlertCircle, Gauge, LogOut, Lock } from "lucide-react"
+import { LoginScreen } from "@/components/login-screen"
 import { VehicleForm } from "@/components/vehicle-form"
 import { FuelRecordForm } from "@/components/fuel-record-form"
 import { VehicleList } from "@/components/vehicle-list"
@@ -25,31 +27,70 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]["id"]
 
+const toVehicle = (row: any) => ({
+  ...row,
+  tank_capacity: Number(row.tank_capacity),
+  year: Number(row.year),
+})
+
+const toFuelRecord = (row: any) => ({
+  ...row,
+  odometer: Number(row.odometer),
+  fuel_amount: Number(row.fuel_amount),
+  fuel_price_per_unit: Number(row.fuel_price_per_unit),
+  total_cost: Number(row.total_cost),
+})
+
 export default function HomePage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState<TabId>("fuel")
-  const [vehicles, setVehicles] = useState([])
-  const [fuelRecords, setFuelRecords] = useState([])
+  const [vehicles, setVehicles] = useState<any[]>([])
+  const [fuelRecords, setFuelRecords] = useState<any[]>([])
   const [showVehicleForm, setShowVehicleForm] = useState(false)
   const [showFuelForm, setShowFuelForm] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [isPremium, setIsPremium] = useState<boolean | null>(null)
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setAuthLoading(false)
+      return
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null)
+      setAuthLoading(false)
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser((current) => {
+        const next = session?.user ?? null
+        return current?.id === next?.id ? current : next
+      })
+    })
+
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (!user) {
+      setVehicles([])
+      setFuelRecords([])
+      setIsPremium(null)
+      return
+    }
+
     const initializeApp = async () => {
       try {
         setIsLoading(true)
         setHasError(false)
 
-        if (!isSupabaseConfigured) {
-          setHasError(true)
-          toast({
-            title: "Erro de Conexão",
-            description: "Não foi possível conectar ao banco de dados. Verifique as configurações.",
-            variant: "destructive"
-          })
-          return
-        }
+        const premium = await checkPremium(user)
+        setIsPremium(premium)
+        if (!premium) return
 
         await fetchVehicles()
         await fetchFuelRecords()
@@ -67,61 +108,67 @@ export default function HomePage() {
     }
 
     initializeApp()
-  }, [])
+  }, [user?.id])
+
+  const checkPremium = async (currentUser: User) => {
+    const { data, error } = await supabase
+      .from('premium_users')
+      .select('is_premium, expires_at')
+      .eq('email', (currentUser.email ?? '').toLowerCase())
+      .maybeSingle()
+
+    if (error) throw error
+    if (!data?.is_premium) return false
+    return !data.expires_at || new Date(data.expires_at).getTime() > Date.now()
+  }
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (!error) return
+    if (/invalid login credentials/i.test(error.message)) throw new Error("E-mail ou senha incorretos")
+    if (/email not confirmed/i.test(error.message)) throw new Error("E-mail ainda não confirmado")
+    throw new Error("Não foi possível entrar. Tente novamente.")
+  }
+
+  const signOut = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
 
   const fetchVehicles = async () => {
     const { data, error } = await supabase
-      .from('vehicles')
+      .from('ft_vehicles')
       .select('*')
       .eq('is_deleted', false)
       .order('created_at', { ascending: false })
     
-    if (error) {
-      console.error('Erro ao buscar veículos:', error)
-      return
-    }
-    
-    const uniqueVehicles = data?.reduce((acc, vehicle) => {
-      if (!acc.find(v => v.id === vehicle.id)) {
-        acc.push(vehicle)
-      }
-      return acc
-    }, []) || []
-    
-    setVehicles(uniqueVehicles)
+    if (error) throw error
+
+    setVehicles((data ?? []).map(toVehicle))
   }
 
   const fetchFuelRecords = async () => {
     const { data, error } = await supabase
-      .from('fuel_records')
+      .from('ft_fuel_records')
       .select('*')
       .eq('is_deleted', false)
       .order('created_at', { ascending: false })
     
-    if (error) {
-      console.error('Erro ao buscar registros de combustível:', error)
-      return
-    }
-    
-    const uniqueRecords = data?.reduce((acc, record) => {
-      if (!acc.find(r => r.id === record.id)) {
-        acc.push(record)
-      }
-      return acc
-    }, []) || []
-    
-    setFuelRecords(uniqueRecords)
+    if (error) throw error
+
+    setFuelRecords((data ?? []).map(toFuelRecord))
   }
 
   const addVehicle = async (vehicle) => {
     const { data, error } = await supabase
-      .from('vehicles')
+      .from('ft_vehicles')
       .insert([
         {
+          id: crypto.randomUUID(),
           name: vehicle.name,
           tank_capacity: vehicle.tank_capacity,
           year: vehicle.year,
-          subtitle: vehicle.subtitle,
+          subtitle: vehicle.subtitle ?? '',
           is_deleted: false
         }
       ])
@@ -137,7 +184,7 @@ export default function HomePage() {
       return
     }
 
-    setVehicles([data[0], ...vehicles])
+    setVehicles([toVehicle(data[0]), ...vehicles])
     setShowVehicleForm(false)
     toast({
       title: "Sucesso",
@@ -146,10 +193,12 @@ export default function HomePage() {
   }
 
   const deleteVehicle = async (vehicleId) => {
-    const { error } = await supabase
-      .from('vehicles')
-      .update({ is_deleted: true })
-      .eq('id', vehicleId)
+    const [records, expenses, vehicle] = await Promise.all([
+      supabase.from('ft_fuel_records').update({ is_deleted: true }).eq('vehicle_id', vehicleId),
+      supabase.from('ft_expenses').update({ is_deleted: true }).eq('vehicle_id', vehicleId),
+      supabase.from('ft_vehicles').update({ is_deleted: true }).eq('id', vehicleId),
+    ])
+    const error = records.error || expenses.error || vehicle.error
 
     if (error) {
       console.error('Erro ao deletar veículo:', error)
@@ -162,6 +211,7 @@ export default function HomePage() {
     }
 
     setVehicles(vehicles.filter(vehicle => vehicle.id !== vehicleId))
+    setFuelRecords(fuelRecords.filter(record => record.vehicle_id !== vehicleId))
     toast({
       title: "Sucesso",
       description: "Veículo excluído com sucesso"
@@ -171,7 +221,7 @@ export default function HomePage() {
   const deleteFuelRecord = async (recordId) => {
     try {
       const { error } = await supabase
-        .from('fuel_records')
+        .from('ft_fuel_records')
         .update({ is_deleted: true })
         .eq('id', recordId)
 
@@ -203,9 +253,10 @@ export default function HomePage() {
   const addFuelRecord = async (record) => {
     try {
       const { data, error } = await supabase
-        .from('fuel_records')
+        .from('ft_fuel_records')
         .insert([{
           ...record,
+          id: crypto.randomUUID(),
           is_deleted: false
         }])
         .select()
@@ -221,7 +272,7 @@ export default function HomePage() {
 
       if (data && data.length > 0) {
         setFuelRecords(
-          [data[0], ...fuelRecords].sort(
+          [toFuelRecord(data[0]), ...fuelRecords].sort(
             (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           )
         )
@@ -262,6 +313,50 @@ export default function HomePage() {
   const sheetClassName =
     "flex max-h-[92dvh] flex-col overflow-y-auto rounded-t-[28px] border-0 bg-[#f7faf8] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[90vh] md:w-full md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-3xl md:border md:pb-6"
 
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[#eef4f1] px-4">
+        <div className="max-w-sm rounded-3xl bg-white px-6 py-12 text-center shadow-sm">
+          <AlertCircle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+          <h3 className="mb-2 text-lg font-bold">Erro de Conexão</h3>
+          <p className="text-sm text-slate-500">
+            Não foi possível conectar ao banco de dados. Verifique se as variáveis de ambiente estão configuradas corretamente.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[#eef4f1]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-100 border-t-[#165a4a]"></div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <LoginScreen onSubmit={signIn} />
+  }
+
+  if (isPremium === false) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-gradient-to-br from-[#0f3d34] via-[#165a4a] to-[#1f7a5c] px-4">
+        <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl">
+          <Lock className="mx-auto mb-4 h-12 w-12 text-amber-500" />
+          <h3 className="mb-2 text-lg font-bold text-slate-900">Acesso exclusivo Premium</h3>
+          <p className="mb-5 text-sm text-slate-500">
+            A conta {user.email} não tem o plano Premium ativo. Assine pelo app FuelTrack para acessar seus dados pelo navegador.
+          </p>
+          <Button onClick={signOut} variant="outline" className="w-full">
+            <LogOut className="h-4 w-4" />
+            Sair da conta
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-dvh bg-[#eef4f1]">
       <div className="relative overflow-hidden bg-gradient-to-br from-[#0f3d34] via-[#165a4a] to-[#1f7a5c] pb-16 pt-5 text-white md:pb-20">
@@ -278,13 +373,23 @@ export default function HomePage() {
                 <h1 className="text-xl font-bold leading-tight md:text-3xl">Controle de combustível</h1>
               </div>
             </div>
-            <Button
-              onClick={openPrimaryAction}
-              className="hidden bg-amber-400 text-[#1a2e24] hover:bg-amber-300 md:inline-flex"
-            >
-              <Plus className="h-4 w-4" />
-              {vehicles.length === 0 || activeTab === "vehicles" ? "Novo veículo" : "Abastecer"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={openPrimaryAction}
+                className="hidden bg-amber-400 text-[#1a2e24] hover:bg-amber-300 md:inline-flex"
+              >
+                <Plus className="h-4 w-4" />
+                {vehicles.length === 0 || activeTab === "vehicles" ? "Novo veículo" : "Abastecer"}
+              </Button>
+              <button
+                onClick={signOut}
+                title={`Sair (${user.email})`}
+                aria-label="Sair da conta"
+                className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20 hover:bg-white/25"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2 sm:gap-3">

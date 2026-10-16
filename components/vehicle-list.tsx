@@ -17,12 +17,12 @@ import {
 
 interface VehicleListProps {
   vehicles: any[]
-  onDelete: (id: number) => void
+  onDelete: (id: string) => void
   onAdd: () => void
 }
 
 export function VehicleList({ vehicles, onDelete, onAdd }: VehicleListProps) {
-  const [vehicleToDelete, setVehicleToDelete] = useState<number | null>(null)
+  const [vehicleToDelete, setVehicleToDelete] = useState<string | null>(null)
 
   if (vehicles.length === 0) {
     return (

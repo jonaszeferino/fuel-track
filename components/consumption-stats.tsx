@@ -10,7 +10,7 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
   // Filtrar registros deletados para garantir que não sejam considerados
   const activeFuelRecords = fuelRecords.filter((record) => !record.is_deleted)
   
-  const calculateConsumption = (vehicleId: number) => {
+  const calculateConsumption = (vehicleId: string) => {
     const vehicleRecords = activeFuelRecords
       .filter((record) => record.vehicle_id === vehicleId)
       .sort((a, b) => a.odometer - b.odometer)
@@ -68,7 +68,7 @@ export function ConsumptionStats({ fuelRecords, vehicles }: ConsumptionStatsProp
     return consumptions
   }
 
-  const getVehicleStats = (vehicleId: number) => {
+  const getVehicleStats = (vehicleId: string) => {
     const consumptions = calculateConsumption(vehicleId)
     if (!consumptions || consumptions.length === 0) return null
 

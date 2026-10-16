@@ -18,13 +18,13 @@ import { useMemo, useState } from "react"
 interface FuelRecordsListProps {
   fuelRecords: any[]
   vehicles: any[]
-  onDelete: (id: number) => void
+  onDelete: (id: string) => void
   onAdd: () => void
   onGoToVehicles: () => void
 }
 
 export function FuelRecordsList({ fuelRecords, vehicles, onDelete, onAdd, onGoToVehicles }: FuelRecordsListProps) {
-  const [recordToDelete, setRecordToDelete] = useState<number | null>(null)
+  const [recordToDelete, setRecordToDelete] = useState<string | null>(null)
   const [vehicleFilter, setVehicleFilter] = useState<string>("all")
 
   const filteredRecords = useMemo(() => {
